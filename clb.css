@@ -183,3 +183,8 @@ ol.lessons li { padding: 4px 0; border-bottom: 1px dashed var(--line); }
     .tbl td.namecell { min-width: 0; white-space: normal; }
     .tbl .m-actions .btn-icon { flex: 1; padding: 9px 0; font-size: 1.05rem; }
 }
+
+/* Chế độ nhúng trong Dashboard (?embed=1): bỏ thanh trên cùng, bỏ nút về Dashboard (đang ở trong Dashboard rồi) */
+.embed .topbar { display: none; }
+.embed .container { padding-top: 14px; }
+.embed a[href="index.html"] { display: none !important; }

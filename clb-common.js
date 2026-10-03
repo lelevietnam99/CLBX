@@ -192,6 +192,14 @@
         if (closer) CLB.closeModal(closer.dataset.close);
     });
 
+    // Chế độ nhúng (?embed=1): trang được Dashboard hiện trong khung bên phải thanh CLB.
+    // Ẩn thanh trên cùng (Dashboard đã có) và báo cho Dashboard biết trang đã sẵn sàng.
+    CLB.embedded = new URLSearchParams(location.search).get('embed') === '1';
+    if (CLB.embedded) {
+        document.documentElement.classList.add('embed');
+        document.addEventListener('DOMContentLoaded', () => { try { parent.postMessage({ type: 'clb-ready', id: CLB.clubId() }, '*'); } catch (e) {} });
+    }
+
     // Link "về Dashboard": trang Dashboard nằm ở repo khác nên dùng địa chỉ trong clb-config.js
     function fixDashboardLinks() {
         const u = (window.CLB_DASHBOARD_URL || '').trim();
@@ -200,7 +208,7 @@
     document.addEventListener('DOMContentLoaded', fixDashboardLinks);
     document.addEventListener('click', e => {         // các nút tạo sau khi trang tải xong (thông báo lỗi...)
         const a = e.target.closest && e.target.closest('a[href="index.html"]');
-        if (!a) return;
+        if (!a || CLB.embedded) return;
         e.preventDefault();
         const u = (window.CLB_DASHBOARD_URL || '').trim();
         if (u) location.href = u;
