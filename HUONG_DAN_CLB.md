@@ -37,6 +37,24 @@
 
 Sau khi sửa code Apps Script: **Triển khai → Quản lý các bản triển khai → bút chì → Phiên bản mới** (đừng tạo triển khai mới để giữ nguyên link).
 
+## Tải trang nhanh (dùng lại data.json của Dashboard)
+
+Các trang CLB không phải chờ Google Sheets (vài giây) mới có chữ để xem:
+
+1. **Trang xem (`clb.html`)** hiện danh sách ngay từ: *bản lưu trên máy* (lần vào lại) hoặc *`data.json` của repo TONGHOPX* (lần đầu), rồi tự đổi sang **dữ liệu trực tiếp** ngay khi Google Sheets trả lời. Dòng trạng thái ở đầu trang cho biết đang xem nguồn nào. Bản cũ đến muộn không bao giờ ghi đè bản mới.
+2. **Trang quản lý (`clb-admin.html`)** luôn dùng dữ liệu trực tiếp (để không thao tác trên dữ liệu cũ), nhưng nhanh hơn trước: form đăng nhập hiện ngay (tên CLB lấy từ `data.json`), và đăng nhập chỉ mất **một** lượt gọi máy chủ thay vì ba.
+
+Để dùng được `data.json`, làm **một lần**:
+
+1. Dán `apps-script/Code.gs` mới của **dự án Dashboard** (repo TONGHOPX) vào Apps Script, Lưu, rồi **Triển khai → bút chì → Phiên bản mới**. Bản này thêm vào `data.json` các trường `clubId` (STT CLB), `pct` (tiến độ), `updated`, `register`.
+2. Vào trang `admin.html` của Dashboard bấm **Cập nhật dữ liệu ngay** để sinh lại `data.json`. Từ lúc đó trang CLB mới dùng được `data.json`. Trước đó, trang tự bỏ qua file cũ và chờ dữ liệu trực tiếp (vẫn chạy bình thường, chỉ chưa nhanh).
+3. Địa chỉ file nằm trong `clb-config.js` (`CLB_DATA_URL`). Để trống nếu không muốn dùng.
+
+Lưu ý:
+- `data.json` chỉ làm mới khi bạn bấm cập nhật ở trang admin của Dashboard (hoặc theo lịch hằng tuần), còn dữ liệu trực tiếp thì mới ngay. Vì vậy ngay sau khi quản lý CLB sửa dữ liệu, người xem lần đầu có thể thấy bản cũ trong giây lát rồi tự chuyển sang bản mới.
+- Bản mới **chỉ lưu năm sinh** trong `data.json` (trước đây file công khai này chứa cả ngày tháng sinh đầy đủ của võ sinh).
+- Danh sách bài đã/chưa hoàn thành không đưa vào `data.json` (rất dài); chi tiết từng em sẽ hiện "đang tải danh sách bài" cho tới khi dữ liệu trực tiếp về.
+
 ## Lưu ý khi dùng
 
 - **Đừng đổi tên dòng tiêu đề** các cột trong tab CLB (`Họ và tên`, `Cấp đai hiện tại`, `Những bài đã hoàn thành`, …): hệ thống nhận cột theo tên tiêu đề. Cột nào có thêm sau này (ví dụ cột thứ R, S, T) sẽ **tự xuất hiện** trong form; cột có dropdown/checkbox trong Sheets cũng hiện đúng kiểu.

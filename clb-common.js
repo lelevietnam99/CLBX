@@ -45,6 +45,56 @@
         return request(window.CLB_API_URL.trim(), { method: 'POST', body: JSON.stringify(body) });
     };
 
+    // ---------- Hiện nhanh: bản lưu trên máy + data.json dựng sẵn ----------
+    // Bản lưu của trang xem công khai (chỉ chứa dữ liệu đã công khai) để lần sau mở là có ngay.
+    CLB.cache = {
+        key: id => 'clb_view_v1_' + id,
+        read(id) {
+            try { const c = JSON.parse(localStorage.getItem(this.key(id))); return c && c.payload && Array.isArray(c.payload.rows) ? c : null; } catch (e) { return null; }
+        },
+        write(id, payload) { try { localStorage.setItem(this.key(id), JSON.stringify({ savedAt: Date.now(), payload })); } catch (e) {} }
+    };
+
+    // Tải data.json (không bao giờ ném lỗi; lỗi thì trả null). Dùng chung một lượt tải cho cả trang.
+    let staticPromise = null;
+    CLB.loadStatic = function () {
+        const url = (window.CLB_DATA_URL || '').trim();
+        if (!url) return Promise.resolve(null);
+        if (!staticPromise) {
+            staticPromise = fetch(url).then(r => (r.ok ? r.json() : null))
+                .then(j => (j && Array.isArray(j.data) ? j : null)).catch(() => null);
+        }
+        return staticPromise;
+    };
+
+    // Các cột mà data.json có, đặt theo đúng "vai trò" như dữ liệu từ API để dùng chung giao diện.
+    const STATIC_FIELDS = [
+        { key: 'Họ và tên', role: 'name', type: 'text' }, { key: 'Pháp Danh', role: 'dharma', type: 'text' }, { key: 'Năm sinh', role: 'birth', type: 'date' },
+        { key: 'Cấp đai hiện tại', role: 'belt', type: 'belt' }, { key: 'Tỷ lệ hoàn thành (%)', role: 'pct', type: 'progress' }, { key: 'Ngày cập nhật', role: 'updated', type: 'progress' },
+        { key: 'Giới tính', role: 'gender', type: 'select' }, { key: 'Đăng ký thi thăng đai', role: 'register', type: 'checkbox' },
+        { key: 'LINK ẢNH ĐẠI DIỆN', role: 'photo', type: 'url' }, { key: 'Link profile', role: 'link', type: 'url' }
+    ];
+    // Thông tin CLB (tên, khu vực) theo STT từ data.json; null nếu file chưa có trường clubId (bản cũ) hoặc CLB chưa có võ sinh.
+    CLB.staticClub = function (json, id) {
+        const s = json && json.data.find(x => x.clubId === id);
+        return s ? { id, name: s.club, region: s.region } : null;
+    };
+    // Dựng dữ liệu "trang xem" từ data.json. partial = true vì chưa có danh sách bài đã/chưa hoàn thành.
+    CLB.staticView = function (json, id) {
+        const club = CLB.staticClub(json, id);
+        if (!club) return null;
+        const clean = (v, empty) => (v === empty ? '' : v);
+        const rows = json.data.filter(x => x.clubId === id).map(x => ({
+            pct: Number(x.pct) || 0,
+            values: {
+                'Họ và tên': x.name, 'Pháp Danh': x.dharma || '', 'Năm sinh': clean(x.birthYear, 'Trống'), 'Cấp đai hiện tại': clean(x.belt, 'Chưa cập nhật'),
+                'Tỷ lệ hoàn thành (%)': Number(x.pct) || 0, 'Ngày cập nhật': x.updated || '', 'Giới tính': clean(x.gender, 'Chưa rõ'),
+                'Đăng ký thi thăng đai': x.register === true, 'LINK ẢNH ĐẠI DIỆN': x.photo || '', 'Link profile': x.profile || ''
+            }
+        }));
+        return { ok: true, club, fields: STATIC_FIELDS, rows, generatedAt: json.updatedAt, source: 'static', partial: true };
+    };
+
     // ---------- Phiên đăng nhập (chỉ lưu trong tab trình duyệt) ----------
     CLB.session = {
         get(id) { try { const s = JSON.parse(sessionStorage.getItem('clb_token_' + id)); return s && s.exp > Date.now() ? s.token : null; } catch (e) { return null; } },

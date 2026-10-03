@@ -11,3 +11,10 @@ window.CLB_API_URL = "https://script.google.com/macros/s/AKfycbyF-844H8BCExXRU1f
  * Để trống ("") nếu chưa có.
  */
 window.CLB_DASHBOARD_URL = "https://lelevietnam99.github.io/TONGHOPX/";
+
+/**
+ * File dữ liệu dựng sẵn của Dashboard (data.json trong repo TONGHOPX). Trang xem CLB dùng nó để HIỆN NGAY danh sách
+ * trong lúc chờ dữ liệu trực tiếp từ Google Sheets. Để trống ("") nếu không muốn dùng.
+ * (Hai trang cùng nằm trên github.io nên đọc được trực tiếp, không bị chặn.)
+ */
+window.CLB_DATA_URL = "https://lelevietnam99.github.io/TONGHOPX/data.json";

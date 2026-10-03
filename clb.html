@@ -51,24 +51,59 @@
             app.innerHTML = `<div class="card state"><div class="big">${icon}</div><h2 style="color:var(--primary)">${CLB.esc(title)}</h2><p style="margin:8px 0 16px">${CLB.esc(text)}</p>${extra || ''}</div>`;
         }
 
-        async function load() {
-            if (id == null) { showState('🔎', 'Thiếu mã CLB', 'Đường link cần có dạng clb.html?id=số-thứ-tự-CLB (ví dụ clb.html?id=1).', '<a class="btn btn-primary" href="index.html">Về Dashboard</a>'); return; }
-            $('linkAdmin').href = 'clb-admin.html?id=' + id;
-            try {
-                data = await CLB.get({ action: 'view', id });
-            } catch (e) {
-                const notFound = e.code === 'NOT_FOUND';
-                showState(notFound ? '🗂️' : '⚠️', notFound ? 'Không tìm thấy CLB' : 'Không tải được dữ liệu', e.message,
-                    '<button class="btn btn-primary" id="retry">🔄 Thử lại</button> <a class="btn" href="index.html">Về Dashboard</a>');
-                const r = $('retry'); if (r) r.onclick = () => { app.innerHTML = '<div class="card"><div class="skeleton"></div><div class="skeleton"></div></div>'; load(); };
-                return;
-            }
+        // Nguồn dữ liệu theo độ mới: 1 = data.json dựng sẵn, 2 = bản lưu trên máy (lần xem trước), 3 = trực tiếp từ Google Sheets.
+        // Chỉ nhận nguồn mới hơn hoặc bằng nguồn đang hiện, để bản cũ đến muộn không ghi đè bản mới.
+        let rank = 0, liveFailed = false, lastError = null;
+
+        function fatal(e) {
+            const notFound = e.code === 'NOT_FOUND';
+            showState(notFound ? '🗂️' : '⚠️', notFound ? 'Không tìm thấy CLB' : 'Không tải được dữ liệu', e.message,
+                '<button class="btn btn-primary" id="retry">🔄 Thử lại</button> <a class="btn" href="index.html">Về Dashboard</a>');
+            $('retry').onclick = () => { app.innerHTML = '<div class="card"><div class="skeleton"></div><div class="skeleton"></div></div>'; load(); };
+        }
+
+        function adopt(payload, r) {
+            if (r < rank) return;
+            rank = r; data = payload;
             map = CLB.fieldMap(data.fields);
-            students = data.rows.map((r, i) => ({ r, i, name: String(CLB.val(map, r, 'name')), belt: String(CLB.val(map, r, 'belt') || ''), pct: r.pct }));
+            students = data.rows.map((row, i) => ({ r: row, i, name: String(CLB.val(map, row, 'name')), belt: String(CLB.val(map, row, 'belt') || ''), pct: row.pct }));
             document.title = data.club.name + ' - Phật Quang Quyền';
             $('crumb').textContent = data.club.name;
             render();
+            refreshOpenDetail();
         }
+
+        function loadLive() {
+            liveFailed = false; if (rank) updateChip();
+            return CLB.get({ action: 'view', id }).then(r => { CLB.cache.write(id, r); adopt(r, 3); }).catch(e => {
+                lastError = e;
+                if (e.code === 'NOT_FOUND') { try { localStorage.removeItem(CLB.cache.key(id)); } catch (x) {} rank = 99; fatal(e); return; }
+                liveFailed = true; if (rank) updateChip();
+            });
+        }
+
+        async function load() {
+            rank = 0; liveFailed = false; lastError = null;
+            if (id == null) { showState('🔎', 'Thiếu mã CLB', 'Đường link cần có dạng clb.html?id=số-thứ-tự-CLB (ví dụ clb.html?id=1).', '<a class="btn btn-primary" href="index.html">Về Dashboard</a>'); return; }
+            $('linkAdmin').href = 'clb-admin.html?id=' + id;
+            const cached = CLB.cache.read(id);
+            if (cached) adopt(cached.payload, 2);                               // Có bản lưu: hiện ngay lập tức
+            const live = loadLive();                                             // Luôn hỏi dữ liệu mới nhất
+            const stat = cached ? null : CLB.loadStatic().then(j => { const v = j && CLB.staticView(j, id); if (v) adopt(v, 1); });
+            await live; if (stat) await stat;
+            if (rank === 0 && lastError) fatal(lastError);                      // Không có gì để hiện
+            else if (rank === 0) showState('🗂️', 'Chưa có dữ liệu', 'CLB này chưa có võ sinh nào.', '<a class="btn" href="index.html">Về Dashboard</a>');
+        }
+
+        // Dòng trạng thái: cho người dùng biết đang xem dữ liệu nào
+        function chipInfo() {
+            const time = new Date(data.generatedAt).toLocaleString('vi-VN');
+            if (rank === 3) return { src: 'live', html: '✅ Dữ liệu cập nhật: ' + CLB.esc(time) };
+            if (liveFailed) return { src: 'offline', html: '⚠️ Chưa tải được dữ liệu mới nhất. Đang hiển thị bản lưu lúc ' + CLB.esc(time) + '. <button class="btn btn-sm" id="retryLive" type="button">Thử lại</button>' };
+            return { src: rank === 2 ? 'cache' : 'static', html: '⏳ Đang hiển thị ' + (rank === 2 ? 'lần xem trước' : 'bản lưu') + ' (' + CLB.esc(time) + '). Đang tải dữ liệu mới nhất…' };
+        }
+        function updateChip() { const el = $('srcChip'); if (el && data) { const c = chipInfo(); el.dataset.src = c.src; el.innerHTML = c.html; } }
+        document.addEventListener('click', e => { if (e.target.id === 'retryLive') loadLive(); });
 
         const beltOrder = b => { const i = CLB.levels().indexOf(b); return i < 0 ? 999 : i; };
         const givenName = n => n.trim().split(/\s+/).pop();
@@ -87,6 +122,8 @@
         }
 
         function render() {
+            const qEl = $('q'), keepFocus = !!qEl && document.activeElement === qEl, caret = qEl ? qEl.selectionStart : 0;
+            if (qEl) state.q = qEl.value;
             const total = students.length;
             const avg = total ? Math.round(students.reduce((s, x) => s + x.pct, 0) / total) : 0;
             const full = students.filter(s => s.pct >= 100).length;
@@ -100,7 +137,7 @@
                         <h1 class="page-title">${CLB.esc(data.club.name)}</h1>
                         <span class="badge region-${CLB.esc(data.club.region.replace(/\s+/g, '-'))}">${CLB.esc(data.club.region)}</span>
                     </div>
-                    <div class="sub">Dữ liệu cập nhật: ${CLB.esc(new Date(data.generatedAt).toLocaleString('vi-VN'))}</div>
+                    <div class="sub" id="srcChip" data-src="${chipInfo().src}">${chipInfo().html}</div>
                 </div>
                 <div class="stats">
                     <div class="stat"><div class="t">Tổng võ sinh</div><div class="v">${total}</div></div>
@@ -130,6 +167,7 @@
             $('chips').onclick = e => { const c = e.target.closest('.chip'); if (!c || c.disabled) return; state.belt = c.dataset.belt; document.querySelectorAll('.chip').forEach(x => x.classList.toggle('on', x.dataset.belt === state.belt)); rows(); };
             $('rows').onclick = e => { const tr = e.target.closest('tr[data-i]'); if (tr && !e.target.closest('a')) openDetail(students[Number(tr.dataset.i)]); };
             rows();
+            if (keepFocus) { $('q').focus(); try { $('q').setSelectionRange(caret, caret); } catch (x) {} }
         }
 
         function rows() {
@@ -150,7 +188,13 @@
         }
         document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches && e.target.matches('tr[data-i]')) openDetail(students[Number(e.target.dataset.i)]); });
 
-        function openDetail(s) {
+        function openDetail(s) { fillDetail(s); CLB.openModal('detailModal'); }
+        // Khi dữ liệu trực tiếp về lúc cửa sổ chi tiết đang mở thì điền lại ngay, không đóng cửa sổ
+        function refreshOpenDetail() {
+            if (!current || !$('detailModal').classList.contains('open')) return;
+            const s = students.find(x => x.name === current.name); if (s) fillDetail(s);
+        }
+        function fillDetail(s) {
             current = s;
             const r = s.r, belt = s.belt, lessons = CLB.lessons(belt);
             $('dPhoto').innerHTML = CLB.avatar(s.name, CLB.val(map, r, 'photo'), 800);
@@ -162,15 +206,23 @@
             $('dKv').innerHTML = kv.map(([k, v]) => `<dt>${CLB.esc(k)}</dt><dd>${CLB.esc(v)}</dd>`).join('') + `<dt>Tiến độ</dt><dd>${CLB.progressBar(s.pct)}</dd>`;
             $('dLinks').innerHTML = data.fields.filter(f => f.role === 'link' && CLB.isHttp(r.values[f.key]))
                 .map(f => `<a class="link-pill" target="_blank" rel="noopener" href="${CLB.esc(r.values[f.key])}">${CLB.esc(f.key)} ↗</a>`).join(' ');
-            const done = CLB.splitLessons(CLB.val(map, r, 'done'), lessons), todo = CLB.splitLessons(CLB.val(map, r, 'todo'), lessons);
-            current.lists = { done: done.known.concat(done.extra), todo: todo.known.concat(todo.extra) };
             const tabs = $('dTabs').children;
-            tabs[0].textContent = `✅ Đã hoàn thành (${current.lists.done.length})`; tabs[1].textContent = `⏳ Chưa hoàn thành (${current.lists.todo.length})`;
-            showTab('done'); CLB.openModal('detailModal');
+            if (data.partial) {                                   // Mới có dữ liệu dựng sẵn: chưa có danh sách bài, đang tải
+                current.lists = null;
+                tabs[0].textContent = '✅ Đã hoàn thành'; tabs[1].textContent = '⏳ Chưa hoàn thành';
+            } else {
+                const done = CLB.splitLessons(CLB.val(map, r, 'done'), lessons), todo = CLB.splitLessons(CLB.val(map, r, 'todo'), lessons);
+                current.lists = { done: done.known.concat(done.extra), todo: todo.known.concat(todo.extra) };
+                tabs[0].textContent = `✅ Đã hoàn thành (${current.lists.done.length})`; tabs[1].textContent = `⏳ Chưa hoàn thành (${current.lists.todo.length})`;
+            }
+            showTab(tab);
         }
         function showTab(t) {
             tab = t;
             [...$('dTabs').children].forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+            if (!current.lists) {
+                $('dLessons').innerHTML = `<li style="list-style:none;color:var(--muted)">${liveFailed ? 'Chưa tải được danh sách bài. Vui lòng thử lại sau.' : '⏳ Đang tải danh sách bài...'}</li>`; return;
+            }
             const list = current.lists[t];
             $('dLessons').innerHTML = list.length ? list.map(x => `<li>${CLB.esc(x)}</li>`).join('') : '<li style="list-style:none;color:var(--muted)">Chưa có dữ liệu.</li>';
         }

@@ -95,18 +95,28 @@
             app.innerHTML = `<div class="card state"><div class="big">${icon}</div><h2 style="color:var(--primary)">${CLB.esc(title)}</h2><p style="margin:8px 0 16px">${CLB.esc(text)}</p><a class="btn btn-primary" href="index.html">Về Dashboard</a></div>`;
         }
 
+        const clubTitle = () => (club ? club.name : 'CLB số ' + id);
+        function setClub(c) {
+            club = c; document.title = 'Quản lý ' + c.name; $('crumb').textContent = c.name + ' · Quản lý';
+            const el = $('loginClub'); if (el) el.textContent = c.name;
+        }
+
         async function start() {
             if (id == null) return showFatal('🔎', 'Thiếu mã CLB', 'Đường link cần có dạng clb-admin.html?id=số-thứ-tự-CLB.');
             $('linkView').href = 'clb.html?id=' + id;
-            try {
-                const list = await CLB.get({ action: 'clubs' });
-                club = list.clubs.find(c => c.id === id);
-            } catch (e) { return showFatal('⚠️', 'Không kết nối được hệ thống', e.message); }
-            if (!club) return showFatal('🗂️', 'Không tìm thấy CLB', 'Không có CLB nào có STT ' + id + '.');
-            document.title = 'Quản lý ' + club.name;
-            $('crumb').textContent = club.name + ' · Quản lý';
             token = CLB.session.get(id);
-            token ? loadList() : showLogin();
+            if (token) return loadList();                     // Đã đăng nhập: chỉ một lượt gọi (danh sách trả kèm thông tin CLB)
+            showLogin();                                       // Chưa đăng nhập: hiện form ngay, không chờ máy chủ
+        }
+
+        // Lấy tên CLB cho màn hình đăng nhập mà không chặn gì: data.json trước (nhanh), rồi xác nhận với máy chủ
+        function resolveClubName() {
+            CLB.loadStatic().then(j => { const c = CLB.staticClub(j, id); if (c && !club) setClub(c); });
+            CLB.get({ action: 'clubs' }).then(r => {
+                const c = r.clubs.find(x => x.id === id);
+                if (!c) { if ($('loginForm')) showFatal('🗂️', 'Không tìm thấy CLB', 'Không có CLB nào có STT ' + id + '.'); return; }
+                setClub(c);
+            }).catch(() => {});                                // Lỗi mạng lúc này không sao: sẽ báo khi bấm Đăng nhập
         }
 
         function showLogin(message) {
@@ -114,7 +124,7 @@
             app.innerHTML = `<div class="card login-card">
                 <div style="font-size:2.2rem">🔐</div>
                 <h1 class="page-title">Quản lý CLB</h1>
-                <div class="sub">${CLB.esc(club.name)}</div>
+                <div class="sub" id="loginClub">${CLB.esc(clubTitle())}</div>
                 <form id="loginForm" novalidate>
                     <label class="lbl" for="pw">Mật khẩu của CLB</label>
                     <input class="input" id="pw" type="password" autocomplete="current-password" data-autofocus required>
@@ -123,15 +133,16 @@
                     <p class="hint" style="margin-top:12px;text-align:center">Quên mật khẩu? Vui lòng liên hệ quản trị viên hệ thống để được cấp lại.</p>
                 </form></div>`;
             $('pw').focus();
+            if (!club) resolveClubName();
             $('loginForm').onsubmit = async e => {
                 e.preventDefault();
                 const pw = $('pw').value; if (!pw) return;
                 const btn = $('loginBtn'), err = $('loginErr');
                 btn.disabled = true; btn.textContent = 'Đang đăng nhập...'; err.hidden = true;
                 try {
-                    const r = await CLB.post({ action: 'login', id, password: pw });
+                    const r = await CLB.post({ action: 'login', id, password: pw, withList: true });
                     token = r.token; CLB.session.set(id, r.token, r.expiresAt);
-                    await loadList();
+                    if (r.list) applyList(r.list); else await loadList();   // Máy chủ trả kèm danh sách -> vào thẳng, không gọi thêm
                 } catch (ex) {
                     err.textContent = ex.message; err.hidden = false; btn.disabled = false; btn.textContent = 'Đăng nhập'; $('pw').select();
                 }
@@ -154,15 +165,19 @@
         async function loadList(silent) {
             if (!silent) app.innerHTML = '<div class="card"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>';
             try {
-                const r = await api({ action: 'list' });
-                fields = r.fields; rows = r.rows; map = CLB.fieldMap(fields);
+                applyList(await api({ action: 'list' }));
+                return;
             } catch (e) {
                 if (e.code === 'AUTH') return;
                 app.innerHTML = `<div class="card state"><div class="big">⚠️</div><p style="margin-bottom:14px">${CLB.esc(e.message)}</p><button class="btn btn-primary" id="retry">🔄 Thử lại</button></div>`;
                 $('retry').onclick = () => loadList(); return;
             }
-            $('topActions').hidden = false;
-            render();
+        }
+
+        // Nhận danh sách từ máy chủ (khi đăng nhập hoặc khi tải lại) rồi vẽ giao diện
+        function applyList(r) {
+            setClub(r.club); fields = r.fields; rows = r.rows; map = CLB.fieldMap(fields);
+            $('topActions').hidden = false; render();
         }
 
         const val = (row, role) => (map.byRole[role] ? row.values[map.byRole[role].key] : '');

@@ -433,7 +433,12 @@ function login_(req) {
   }
   clearFails_(key);
   var t = makeToken_(club.id, rec);
-  return { ok: true, token: t.token, expiresAt: t.expiresAt, club: club };
+  var out = { ok: true, token: t.token, expiresAt: t.expiresAt, club: club };
+  // withList: trả luôn danh sách võ sinh để trang quản trị không phải gọi thêm một lượt nữa (nhanh hơn)
+  if (req.withList) {
+    try { out.list = adminPayload_(club, loadAdmin_(club)); } catch (err) { Logger.log("login withList lỗi: " + err); }
+  }
+  return out;
 }
 
 // ============================================================
