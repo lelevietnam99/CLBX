@@ -28,7 +28,7 @@ var MAX_FAILS = 5;                                   // Sai mật khẩu quá s�
 var LOCK_SECONDS = 15 * 60;                          // Thời gian tạm khóa (giây)
 var MAX_TEXT_CHARS = 500;                            // Giới hạn ô văn bản ngắn
 var MAX_LONG_CHARS = 10000;                          // Giới hạn ô văn bản dài (ghi chú, danh sách bài)
-var PUBLIC_HIDDEN_ROLES = ["note", "height", "weight", "id"];   // Cột KHÔNG hiện ở trang xem công khai
+var PUBLIC_HIDDEN_ROLES = ["note", "height", "weight", "id", "phone"];   // Cột KHÔNG hiện ở trang xem công khai
 var GENDER_OPTIONS = ["Nam", "Nữ"];
 
 // Nhận diện vai trò cột theo tên tiêu đề (không phân biệt hoa/thường). Cột lạ vẫn được hỗ trợ như ô văn bản.
@@ -50,7 +50,10 @@ var ROLE_RULES = [
   ["photo", /ảnh đại diện/],
   ["link", /^link/],
   ["height", /^chiều cao/],
-  ["weight", /^cân nặng/]
+  ["weight", /^cân nặng/],
+  ["bhl", /^bhl$|^ban huấn luyện/],
+  ["title", /^chức danh/],
+  ["phone", /^sđt|^số điện thoại|^điện thoại/]
 ];
 
 // ---------- LỖI CÓ MÃ ----------
@@ -243,7 +246,7 @@ function readMeta_(sheet) {
     else if (role === "belt") { f.type = "belt"; }
     else if (role === "done" || role === "todo" || role === "pct" || role === "updated") { f.type = "progress"; f.readonly = true; }
     else if (role === "gender") { f.type = "select"; f.options = GENDER_OPTIONS.slice(); }
-    else if (role === "register") { f.type = "checkbox"; }
+    else if (role === "register" || role === "bhl") { f.type = "checkbox"; }
     else if (role === "note") { f.type = "textarea"; }
     else if (role === "photo" || role === "link") { f.type = "url"; }
     else if (role === "id") { f.type = "hidden"; f.readonly = true; }
