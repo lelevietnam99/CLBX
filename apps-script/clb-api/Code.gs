@@ -312,7 +312,13 @@ function readRows_(sheet, meta, tz) {
     var nameCell = raw[i][meta.byRole.name.col - 1];
     if (nameCell === null || nameCell === undefined || String(nameCell).trim() === "") continue;
     var values = {};
-    meta.fields.forEach(function (f) { if (f.role !== "id") values[f.key] = cellOut_(raw[i][f.col - 1], tz); });
+    meta.fields.forEach(function (f) {
+      if (f.role === "id") return;
+      var cv = cellOut_(raw[i][f.col - 1], tz);
+      // Ô tick: chỉ TRUE/"TRUE" là đã tick. Chữ lạ (vd. mã cũ còn sót trong cột BHL) coi như chưa tick; lưu lại sẽ thành FALSE/TRUE sạch
+      if (f.type === "checkbox") cv = cv === true || String(cv).toUpperCase() === "TRUE";
+      values[f.key] = cv;
+    });
     var pctField = meta.byRole.pct;
     out.push({
       row: i + 2,
