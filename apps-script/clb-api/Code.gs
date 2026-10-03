@@ -535,6 +535,11 @@ function writeCell_(sheet, rowNum, field, value) {
   var cell = sheet.getRange(rowNum, field.col);
   if (field.role === "pct") { cell.setValue(value); cell.setNumberFormat("0%"); return; }
   if (value instanceof Date) { cell.setValue(value); cell.setNumberFormat("dd/MM/yyyy"); return; }
+  if (field.type === "checkbox") {                    // Ô tick: luôn hiện đúng dạng hộp kiểm (kể cả dòng mới thêm) và lưu TRUE/FALSE
+    if (!cell.getDataValidation()) cell.insertCheckboxes();
+    cell.setValue(value === true);
+    return;
+  }
   cell.setValue(value);
 }
 
