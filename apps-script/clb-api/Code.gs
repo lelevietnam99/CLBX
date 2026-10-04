@@ -131,6 +131,33 @@ function khoiTao() {
 }
 
 // ============================================================
+//  CHUYỂN API CLB SANG DỰ ÁN APPS SCRIPT RIÊNG (giữ nguyên mật khẩu các CLB)
+//  1) Ở dự án CŨ: chạy xuatCauHinh(), mở "Nhật ký thực thi", copy dòng JSON.
+//  2) Ở dự án MỚI: dán JSON đó vào CAU_HINH_NHAP bên dưới, chạy nhapCauHinh(), rồi xóa JSON khỏi biến (để trống '').
+//  Chỉ chép SHEET_ID, SUPER_KEY, TOKEN_SECRET và mật khẩu đã băm của từng CLB (không có mật khẩu gốc).
+// ============================================================
+var CAU_HINH_NHAP = '';
+
+function xuatCauHinh() {
+  var all = PropertiesService.getScriptProperties().getProperties(), out = {}, n = 0;
+  Object.keys(all).forEach(function (k) {
+    if (k === "SHEET_ID" || k === "SUPER_KEY" || k === "TOKEN_SECRET" || k.indexOf("PW_") === 0) { out[k] = all[k]; if (k.indexOf("PW_") === 0) n++; }
+  });
+  Logger.log("Đã gom cấu hình: " + n + " mật khẩu CLB. Copy NGUYÊN dòng JSON dưới đây (và không gửi cho ai):");
+  Logger.log(JSON.stringify(out));
+}
+
+function nhapCauHinh() {
+  if (!CAU_HINH_NHAP) { Logger.log("Chưa dán JSON vào biến CAU_HINH_NHAP."); return; }
+  var data = JSON.parse(CAU_HINH_NHAP), keys = Object.keys(data), n = 0;
+  var props = PropertiesService.getScriptProperties();
+  keys.forEach(function (k) {
+    if (k === "SHEET_ID" || k === "SUPER_KEY" || k === "TOKEN_SECRET" || k.indexOf("PW_") === 0) { props.setProperty(k, String(data[k])); if (k.indexOf("PW_") === 0) n++; }
+  });
+  Logger.log("Đã nhập " + n + " mật khẩu CLB và các khóa hệ thống. Hãy xóa JSON khỏi CAU_HINH_NHAP rồi chạy khoiTao().");
+}
+
+// ============================================================
 //  TIỆN ÍCH CHUNG
 // ============================================================
 var _ssCache = null;
