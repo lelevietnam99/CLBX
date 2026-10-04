@@ -4,7 +4,7 @@
  * Ví dụ: "https://script.google.com/macros/s/AKfycb.../exec"
  * Đây là link công khai nên có thể để trong mã nguồn; mật khẩu thì KHÔNG bao giờ để ở đây.
  */
-window.CLB_API_URL = "https://script.google.com/macros/s/AKfycbyF-844H8BCExXRU1fjRO7jRoLwUgL52x2GaIJd3DcumwDRyQ3M2dKIDnmm_7-ZINlqjA/exec";
+window.CLB_API_URL = "https://script.google.com/macros/s/AKfycbyrQbxDEf5R7oZYSicJ2bmz3vOCn90IBBbkA7CHPR2Pns71IjdBBWdoJPgwqScZfi2KtQ/exec";
 
 /**
  * Địa chỉ trang Dashboard tổng (nút logo "PQQ Dashboard" và nút "Về Dashboard" sẽ dẫn về đây).
