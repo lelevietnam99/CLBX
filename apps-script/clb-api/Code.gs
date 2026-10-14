@@ -33,7 +33,7 @@ var GENDER_OPTIONS = ["Nam", "Nữ"];
 
 // Cột "Cấp đai liên đoàn": chỉ các cấp sau (theo quy định của Liên đoàn)
 var LIEN_DOAN_BELT_OPTIONS = [
-  "Cấp 0", "Cấp 1", "Cấp 2", "Cấp 4", "Cấp 5", "Cấp 6", "Cấp 7", "Cấp 8", "Cấp 9",
+  "Cấp 0", "Cấp 1", "Cấp 2", "Cấp 3", "Cấp 4", "Cấp 5", "Cấp 6", "Cấp 7", "Cấp 8", "Cấp 9",
   "Cấp 10", "Cấp 11", "Cấp 12", "Cấp 13 - Trợ giáo cấp 1", "Cấp 14 - Trợ giáo cấp 2",
   "Cấp 15 - Trợ giáo cấp 3", "Cấp 16 - Trợ giáo cấp 4", "Cấp 17 - Chuẩn Võ Sư", "Cấp 18 - Võ Sư"
 ];
