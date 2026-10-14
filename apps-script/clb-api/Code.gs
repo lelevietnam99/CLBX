@@ -31,6 +31,13 @@ var MAX_LONG_CHARS = 10000;                          // Giới hạn ô văn b�
 var PUBLIC_HIDDEN_ROLES = ["note", "height", "weight", "id", "phone"];   // Cột KHÔNG hiện ở trang xem công khai
 var GENDER_OPTIONS = ["Nam", "Nữ"];
 
+// Cột "Cấp đai liên đoàn": chỉ các cấp sau (theo quy định của Liên đoàn)
+var LIEN_DOAN_BELT_OPTIONS = [
+  "Cấp 0", "Cấp 1", "Cấp 2", "Cấp 4", "Cấp 5", "Cấp 6", "Cấp 7", "Cấp 8", "Cấp 9",
+  "Cấp 10", "Cấp 11", "Cấp 12", "Cấp 13 - Trợ giáo cấp 1", "Cấp 14 - Trợ giáo cấp 2",
+  "Cấp 15 - Trợ giáo cấp 3", "Cấp 16 - Trợ giáo cấp 4", "Cấp 17 - Chuẩn Võ Sư", "Cấp 18 - Võ Sư"
+];
+
 // Nhận diện vai trò cột theo tên tiêu đề (không phân biệt hoa/thường). Cột lạ vẫn được hỗ trợ như ô văn bản.
 var ROLE_RULES = [
   ["id", /^mã định danh/],
@@ -39,6 +46,7 @@ var ROLE_RULES = [
   ["dharma", /^pháp danh$/],
   ["birth", /năm sinh|ngày sinh/],
   ["unit", /^đơn vị$/],
+  ["belt_ld", /liên đoàn/],
   ["belt", /^cấp đai/],
   ["done", /^những bài đã hoàn thành/],
   ["todo", /^những bài chưa hoàn thành/],
@@ -271,6 +279,7 @@ function readMeta_(sheet) {
     else if (role === "birth") { f.type = "date"; }
     else if (role === "unit") { f.type = "readonly"; f.readonly = true; }
     else if (role === "belt") { f.type = "belt"; }
+    else if (role === "belt_ld") { f.type = "select"; f.options = LIEN_DOAN_BELT_OPTIONS.slice(); }
     else if (role === "done" || role === "todo" || role === "pct" || role === "updated") { f.type = "progress"; f.readonly = true; }
     else if (role === "gender") { f.type = "select"; f.options = GENDER_OPTIONS.slice(); }
     else if (role === "register" || role === "bhl") { f.type = "checkbox"; }
@@ -558,6 +567,14 @@ function coerce_(field, raw, tz) {
   return safeText_(s);
 }
 
+/** Khi sửa: giữ nguyên giá trị cũ của ô chọn (kể cả khi không còn trong danh sách) để không bị chặn khi chỉ sửa ô khác. */
+function coerceForUpdate_(field, row, raw, tz) {
+  if (field.type === "select" && String(row.values[field.key] == null ? "" : row.values[field.key]) === String(raw == null ? "" : raw).trim()) {
+    return String(row.values[field.key]);
+  }
+  return coerce_(field, raw, tz);
+}
+
 function sameValue_(current, next, tz) {
   if (next instanceof Date) return current === Utilities.formatDate(next, tz, "dd/MM/yyyy");
   if (typeof next === "boolean") return current === next;
@@ -696,7 +713,7 @@ function adminUpdate_(req) {
     meta.fields.forEach(function (f) {
       if (f.role === "id" || f.type === "auto" || f.type === "readonly" || f.type === "progress") return;
       if (!(f.key in input)) return;
-      var v = coerce_(f, input[f.key], ctx.tz);
+      var v = coerceForUpdate_(f, row, input[f.key], ctx.tz);
       if (f.required && v === "") throw new AppError("INVALID", "Vui lòng nhập \"" + f.key + "\".");
       if (sameValue_(row.values[f.key], v, ctx.tz)) return;
       before[f.key] = row.values[f.key];
